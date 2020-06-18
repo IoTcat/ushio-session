@@ -1,6 +1,6 @@
 {
     "name": "ushio-session",
-    "script": "src/app.js",
+    "script": "src/bin/www",
     "instances": "2",
     "env": {
         "NODE_ENV": "development"
