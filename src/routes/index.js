@@ -5,7 +5,9 @@ var redis = require('redis');
 
 
 /* redis start */
-var rc = new redis.createClient();
+var rc = new redis.createClient({
+    host: 'redis'
+});
 
 router.get('/set', function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*'); 
