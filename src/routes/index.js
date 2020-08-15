@@ -13,13 +13,24 @@ var rc = new redis.createClient({
 
 var checkRedirect = (id, resolve, reject) => {
     rc.get('session/redirect/'+id, (err, val) => {
-        if(err){
+        if(err || !val){
             setTimeout(checkRedirect, 20, id, resolve, reject);
+        }else{
+           checkRedirect2(val, resolve, reject);
+        }
+    });
+}
+
+var checkRedirect2 = (token, resolve, reject) => {
+    rc.get('auth/token/'+token, (err, val) => {
+        if(!val){
+            resolve(token);
         }else{
            resolve(val); 
         }
     });
 }
+
 
 var getAddress = (fp, mask) => {
     let id = md5(fp+mask);
@@ -87,7 +98,8 @@ router
      }else{
 	ws.close();
      }
-      ws.on('message', function (msg) {
+      ws.on('message', async function (msg) {
+        hash = await getAddress(req.query.fp, req.query.mask);
         if(msg == 'get'){
            var o = {};
            rc.hkeys('session/dialog/'+hash, function(err, keys){
