@@ -3,7 +3,11 @@ var expressWs = require('express-ws');
 var router = express.Router();
 var redis = require('redis');
 var md5 = require('md5');
+var mysql = require('mysql');
 
+/* mysql start */
+var sql = mysql.createConnection(require('/mnt/config/dbKeys/auth.js'));
+sql.connect();
 
 /* redis start */
 var rc = new redis.createClient({
@@ -11,38 +15,35 @@ var rc = new redis.createClient({
 });
 
 
-var checkRedirect = (id, resolve, reject) => {
-    rc.get('session/redirect/'+id, (err, val) => {
-        if(err || !val){
-            setTimeout(checkRedirect, 20, id, resolve, reject);
-        }else{
-           checkRedirect2(val, resolve, reject);
-        }
+var getAddress = (mask) => {
+    return new Promise((resolve, reject)=>{
+        sql.query("SELECT * FROM mask where mask=?", [mask], (err, res, fields)=>{
+            if(err || !res){
+                resolve(null);
+                return;
+            }
+            var token = res[0]['token'];
+            sql.query("SELECT * FROM token where token=?", [token], (err, res, fields)=>{
+                if(err || !res){
+                    resolve(token);
+                    return;
+                }
+                if(!res[0]['state']){
+                    resolve(token);
+                    return;
+                }
+                var hash = res[0]['hash'];
+                resolve(hash);
+            }) 
+        });
     });
 }
 
-var checkRedirect2 = (token, resolve, reject) => {
-    rc.get('auth/token/'+token, (err, val) => {
-        if(!val){
-            resolve(token);
-        }else{
-           resolve(val); 
-        }
-    });
-}
-
-
-var getAddress = (fp, mask) => {
-    let id = md5(fp+mask);
-    return new Promise((resolve, reject) => {
-        checkRedirect(id, resolve, reject);
-    });
-}
 
 router.get('/set', async function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*'); 
-    if(!req.query.key || !req.query.val || !req.query.fp || !req.query.t || !req.query.mask) {res.send({"code":"500"});;return;}
-    let hash = await getAddress(req.query.fp, req.query.mask);
+    if(!req.query.key || !req.query.val || !req.query.t || !req.query.mask) {res.send({"code":"500"});;return;}
+    let hash = await getAddress(req.query.mask);
     rc.hset('session/dialog/'+hash, req.query.key, req.query.val);
     rc.hset('session/dialog/'+hash, 'LastOperateTime', req.query.t);
     res.send({code:"200"}); 
@@ -50,9 +51,9 @@ router.get('/set', async function(req, res, next) {
 
 router.get('/del', async function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
-    if(!req.query.del || !req.query.fp || !req.query.mask || !req.query.t) {res.send({"code":"500"});;return;}
+    if(!req.query.del || !req.query.mask || !req.query.t) {res.send({"code":"500"});;return;}
     
-    let hash = await getAddress(req.query.fp, req.query.mask);
+    let hash = await getAddress(req.query.mask);
     rc.hdel('session/dialog/'+hash, req.query.del);
     rc.hset('session/dialog/'+hash, 'LastOperateTime', req.query.t);
     res.send({code:"200"}); 
@@ -61,8 +62,8 @@ router.get('/del', async function(req, res, next) {
 
 router.get('/get', async function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
-    if(!req.query.fp || !req.query.mask) {res.send({"code":"500"});;return;}
-    let hash = await getAddress(req.query.fp, req.query.mask);
+    if(!req.query.mask) {res.send({"code":"500"});;return;}
+    let hash = await getAddress(req.query.mask);
     var o = {};
            rc.hkeys('session/dialog/'+hash, function(err, keys){
            if(!err){
@@ -91,15 +92,12 @@ expressWs(router);
 
 router
   .ws('/', async function (ws, req){
-     if(req.query.fp.length == 6 && req.query.mask){
-	var fp = req.query.fp;
-	var mask = req.query.mask;
-    var hash = await getAddress(req.query.fp, req.query.mask);
+     if(req.query.mask){
+    var hash = await getAddress(req.query.mask);
      }else{
 	ws.close();
      }
       ws.on('message', async function (msg) {
-        hash = await getAddress(req.query.fp, req.query.mask);
         if(msg == 'get'){
            var o = {};
            rc.hkeys('session/dialog/'+hash, function(err, keys){
