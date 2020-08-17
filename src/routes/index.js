@@ -18,13 +18,13 @@ var rc = new redis.createClient({
 var getAddress = (mask) => {
     return new Promise((resolve, reject)=>{
         sql.query("SELECT * FROM mask where mask=?", [mask], (err, res, fields)=>{
-            if(err || !res){
+            if(err || typeof res[0] == "undefined"){
                 resolve(null);
                 return;
             }
             var token = res[0]['token'];
             sql.query("SELECT * FROM token where token=?", [token], (err, res, fields)=>{
-                if(err || !res){
+                if(err || typeof res[0] == "undefined"){
                     resolve(token);
                     return;
                 }
@@ -68,6 +68,7 @@ router.get('/get', async function(req, res, next) {
            rc.hkeys('session/dialog/'+hash, function(err, keys){
            if(!err){
 	     if(!keys.length){
+                o['hash'] = hash;
                 res.send(o);
              }
              keys.forEach(function(key, i){
@@ -75,6 +76,7 @@ router.get('/get', async function(req, res, next) {
                  if(!err2){
                    o[key] = val;
                    if(i == keys.length - 1){
+                     o['hash'] = hash;
                      res.send(o);
                    }
                  }
@@ -108,6 +110,7 @@ router
                  if(!err2){
                    o[key] = val;
                    if(i == keys.length - 1){
+                     o['hash'] = hash;
                      ws.send(JSON.stringify(o));
                    }
                  }
