@@ -639,7 +639,7 @@ function getAddress($mask, $redis){
     $cnn = db__connect();
     $res = db__getData($cnn, "mask", "mask", $mask);
     $token = $res[0]['token'];
-    if(!db__rowNum($cnn, "token", "token", $token), "state", 1){
+    if(!db__rowNum($cnn, "token", "token", $token, "state", 1)){
         return $token;
     }
     $hash = db__getData($cnn, "token", "token", $token);
