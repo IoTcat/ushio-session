@@ -4,7 +4,7 @@
  * Module dependencies.
  */
 
-var app = require('../app');
+var app = require(__dirname+'/../app');
 var debug = require('debug')('ushio-session:server');
 var http = require('http');
 
