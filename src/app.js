@@ -20,7 +20,7 @@ app.set('view engine', 'pug');
 
 /* ws config */
 expressWs(app);
-app.listen(21514);
+app.listen(21514, "0.0.0.0");
 
 app.use(logger('dev'));
 app.use(express.json());
